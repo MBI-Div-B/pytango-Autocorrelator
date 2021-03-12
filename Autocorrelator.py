@@ -29,6 +29,11 @@ class Autocorrelator(Device):
     (the image itself) and one will be able to calculate the FWHM in x and y 
     under different situations.
     '''   
+
+    ImageProxy = device_property(
+        dtype=str,
+        default_value='domain/family/member/attribute',
+        )
     
     data_x = attribute(name='data_x', label='data x',max_dim_x=4096,
                       dtype=(DevFloat,), access=AttrWriteType.READ)
@@ -75,7 +80,7 @@ class Autocorrelator(Device):
         self.debug_stream("Preparing device")
         Device.init_device(self)
         try:
-            self.camera = tango.DeviceProxy('MOKE/Basler/autocorrelator')
+            self.image_proxy = AttributeProxy(self.ImageProxy)
             self.debug_stream('Init was done')
         except:
             self.error_stream('Could not contact camera :( ')
@@ -84,7 +89,7 @@ class Autocorrelator(Device):
             
     def read_data_x(self):
         self.debug_stream("Graphing x axis")
-        real_data = self.camera.image
+        real_data = self.image_proxy.read().value
         self.N = len(real_data[0,:])
         self.x2 = np.linspace(0,self.N,self.N)
         self.x_axis = np.mean(real_data, axis = 0)
@@ -93,7 +98,7 @@ class Autocorrelator(Device):
     
     def read_data_y(self):
         self.debug_stream("Graphing y axis")
-        real_data = self.camera.image
+        real_data = self.image_proxy.read().value
         self.N2 = len(real_data[:,0])
         self.y2 = np.linspace(0,self.N2,self.N2)
         self.y_axis = np.mean(real_data, axis = 1)
@@ -107,7 +112,7 @@ class Autocorrelator(Device):
 
         mod = lm.Model(gaussian_paula)
         self.parsx = lm.Parameters()
-        real_data = self.camera.image
+        real_data = self.image_proxy.read().value
         self.x_axis = np.mean(real_data, axis = 0)
         
         self.x_max = np.max(self.x_axis)
@@ -161,7 +166,7 @@ class Autocorrelator(Device):
         mod = lm.Model(gaussian_paula)
         self.pars = lm.Parameters()
         
-        real_data = self.camera.image
+        real_data = self.image_proxy.read().value
         self.y_axis = np.mean(real_data, axis = 1)
         
         self.y_max = np.max(self.y_axis)
