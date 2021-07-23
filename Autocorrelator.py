@@ -6,7 +6,7 @@ Created on Thu Jan 14 16:03:29 2021
 @author: moke
 """
 
-from tango import AttrWriteType, DevState, DevFloat, DebugIt
+from tango import AttrWriteType, DevState, DevFloat, DebugIt, AttributeProxy
 from tango.server import Device, attribute, device_property
 from scipy.constants import c as co
 import tango
@@ -70,12 +70,13 @@ class Autocorrelator(Device):
     #                       dtype="float", format="%4.3f", access=AttrWriteType.READ)
     
     sigma_try = device_property(dtype="int")
-    __position_1 = 1
-    __position_2 = 2
+    __position_1 = 780
+    __position_2 = 1129
     d = 95*1e-6 #conversion into m
     c_0 = co*1e-15  #conversion into m/fs
     width = 300
     sqrt2 = np.sqrt(2)
+    N = 0
     def init_device(self):
         self.debug_stream("Preparing device")
         Device.init_device(self)
@@ -89,7 +90,7 @@ class Autocorrelator(Device):
             
     def read_data_x(self):
         self.debug_stream("Graphing x axis")
-        real_data = self.image_proxy.read().value
+        real_data = np.array(self.image_proxy.read().value)
         self.N = len(real_data[0,:])
         self.x2 = np.linspace(0,self.N,self.N)
         self.x_axis = np.mean(real_data, axis = 0)
@@ -98,8 +99,9 @@ class Autocorrelator(Device):
     
     def read_data_y(self):
         self.debug_stream("Graphing y axis")
-        real_data = self.image_proxy.read().value
+        real_data = np.array(self.image_proxy.read().value)
         self.N2 = len(real_data[:,0])
+
         self.y2 = np.linspace(0,self.N2,self.N2)
         self.y_axis = np.mean(real_data, axis = 1)
         self.debug_stream('cameras y axis was graphed properly')
@@ -112,7 +114,7 @@ class Autocorrelator(Device):
 
         mod = lm.Model(gaussian_paula)
         self.parsx = lm.Parameters()
-        real_data = self.image_proxy.read().value
+        real_data = np.array(self.image_proxy.read().value)
         self.x_axis = np.mean(real_data, axis = 0)
         
         self.x_max = np.max(self.x_axis)
@@ -124,8 +126,7 @@ class Autocorrelator(Device):
         self.parsx.add('c', value = self.x_min)
         self.parsx.add('sigma', value = self.sigma_try )
         
-        self.debug_stream('parameters fitting x axis data') 
-        
+        self.debug_stream('parameters fitting x axis data')
         self.out_gaussx = mod.fit(self.x_axis, self.parsx, x=self.x2) 
         self.debug_stream('fitting x axis done succesfully') 
         
