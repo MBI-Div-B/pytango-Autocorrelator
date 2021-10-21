@@ -37,12 +37,12 @@ class Autocorrelator(Device):
     
     data_x = attribute(name='data_x', label='data x',max_dim_x=4096,
                       dtype=(DevFloat,), access=AttrWriteType.READ)
-    data_y = attribute(name='data_y', label='data y',max_dim_x=4096,
-                      dtype=(DevFloat,), access=AttrWriteType.READ)
+    #data_y = attribute(name='data_y', label='data y',max_dim_x=4096,
+    #                  dtype=(DevFloat,), access=AttrWriteType.READ)
     fitting_x = attribute(name='fitting_x', label='fitting x',max_dim_x=4096,
                       dtype=(DevFloat,), access=AttrWriteType.READ)
-    fitting_y = attribute(name='fitting_y', label='fitting y',max_dim_x=4096,
-                      dtype=(DevFloat,), access=AttrWriteType.READ)
+    #fitting_y = attribute(name='fitting_y', label='fitting y',max_dim_x=4096,
+    #                  dtype=(DevFloat,), access=AttrWriteType.READ)
     mu_x = attribute(name='mu_x', label='Location of maximum in data x (pixels)', 
                           dtype="float", format="%4.3f", access=AttrWriteType.READ)
     
@@ -50,6 +50,12 @@ class Autocorrelator(Device):
                         access=AttrWriteType.READ_WRITE, memorized=True, hw_memorized=True)
     
     center2 = attribute(label='peak 2, with the quartz (loc. max in pixels)', dtype="float", 
+                        access=AttrWriteType.READ_WRITE, memorized=True, hw_memorized=True)
+
+    xpos = attribute(label='start integrating x (pixel)', dtype="float", 
+                        access=AttrWriteType.READ_WRITE, memorized=True, hw_memorized=True)
+    
+    xwin = attribute(label='integration window x (pixel)', dtype="float", 
                         access=AttrWriteType.READ_WRITE, memorized=True, hw_memorized=True)
     
     calibration = attribute(name='calibration', label='calibration (fs/pixel)', 
@@ -59,12 +65,12 @@ class Autocorrelator(Device):
                             dtype="float",format="%4.3f", access=AttrWriteType.READ)
 
 
-    gaussian_pulsewidth_y = attribute(name='gaussian_pulsewidth_y', label='y axis(fs)', 
-                            dtype="float",format="%4.3f", access=AttrWriteType.READ)
+    #gaussian_pulsewidth_y = attribute(name='gaussian_pulsewidth_y', label='y axis(fs)', 
+    #                        dtype="float",format="%4.3f", access=AttrWriteType.READ)
     sech2_pulsewidth_x = attribute(name='sech2_pulsewidth_x', label='sech2 pulsewidth: x axis (fs)', 
                             dtype="float",format="%4.3f", access=AttrWriteType.READ)
-    sech2_pulsewidth_y = attribute(name='sech2_pulsewidth_y', label='y axis (fs)', 
-                            dtype="float",format="%4.3f", access=AttrWriteType.READ)
+    #sech2_pulsewidth_y = attribute(name='sech2_pulsewidth_y', label='y axis (fs)', 
+    #                        dtype="float",format="%4.3f", access=AttrWriteType.READ)
 
     # twodgaussian = attribute(name='twodgaussian', label='two dimensional integration', 
     #                       dtype="float", format="%4.3f", access=AttrWriteType.READ)
@@ -72,6 +78,8 @@ class Autocorrelator(Device):
     sigma_try = device_property(dtype="int")
     __position_1 = 780
     __position_2 = 1129
+    __xposi = 100
+    __xwind = 50
     d = 95*1e-6 #conversion into m
     c_0 = co*1e-15  #conversion into m/fs
     width = 300
@@ -93,19 +101,18 @@ class Autocorrelator(Device):
         real_data = np.array(self.image_proxy.read().value)
         self.N = len(real_data[0,:])
         self.x2 = np.linspace(0,self.N,self.N)
-        self.x_axis = np.mean(real_data, axis = 0)
+        self.x_axis = np.mean(real_data[int(self.__xposi):int(self.__xposi)+int(self.__xwind),:], axis = 0)
         self.debug_stream('cameras x axis was graphed colected properly')
         return self.x_axis
     
-    def read_data_y(self):
-        self.debug_stream("Graphing y axis")
-        real_data = np.array(self.image_proxy.read().value)
-        self.N2 = len(real_data[:,0])
-
-        self.y2 = np.linspace(0,self.N2,self.N2)
-        self.y_axis = np.mean(real_data, axis = 1)
-        self.debug_stream('cameras y axis was graphed properly')
-        return self.y_axis
+    #def read_data_y(self):
+    #    self.debug_stream("Graphing y axis")
+    #    real_data = np.array(self.image_proxy.read().value)
+    #    self.N2 = len(real_data[:,0])
+    #    self.y2 = np.linspace(0,self.N2,self.N2)
+    #    self.y_axis = np.mean(real_data, axis = 1)
+    #    self.debug_stream('cameras y axis was graphed properly')
+    #    return self.y_axis
         
     def read_mu_x(self):
         self.debug_stream("Calculating the center of the peak in the x axis")
@@ -116,7 +123,7 @@ class Autocorrelator(Device):
         self.parsx = lm.Parameters()
         real_data = np.array(self.image_proxy.read().value)
         self.x_axis = np.mean(real_data, axis = 0)
-        
+        #self.x_axis = np.mean(real_data[self.__xposi:self.__xposi+self.__xwind,:], axis = 0)
         self.x_max = np.max(self.x_axis)
         self.x_min = np.min(self.x_axis)
         self.mu = self.x_axis.argmax()
@@ -141,12 +148,24 @@ class Autocorrelator(Device):
     
     def write_center1(self, value):
         self.__position_1 = value
-        
+
     def read_center2(self):
         return self.__position_2
     
     def write_center2(self, value):
         self.__position_2 = value
+        
+    def read_xpos(self):
+        return self.__xposi
+    
+    def write_xpos(self, value):
+        self.__xposi = value
+
+    def read_xwin(self):
+        return self.__xwind
+    
+    def write_xwin(self, value):
+        self.__xwind = value
         
     def read_calibration(self):
         t = self.d/self.c_0
@@ -160,37 +179,37 @@ class Autocorrelator(Device):
     def read_sech2_pulsewidth_x(self):
         return self.a*2*np.sqrt(2*np.log(2))*self.calibr_real*1.55  
     
-    def read_gaussian_pulsewidth_y(self):
-        def gaussian_paula(x, mu, A, sigma, c):
-            return A*np.exp(-(x-mu)**2/(2*sigma**2))+c
+    #def read_gaussian_pulsewidth_y(self):
+    #    def gaussian_paula(x, mu, A, sigma, c):
+    #        return A*np.exp(-(x-mu)**2/(2*sigma**2))+c
         
-        mod = lm.Model(gaussian_paula)
-        self.pars = lm.Parameters()
+    #    mod = lm.Model(gaussian_paula)
+    #    self.pars = lm.Parameters()
         
-        real_data = self.image_proxy.read().value
-        self.y_axis = np.mean(real_data, axis = 1)
+    #    real_data = self.image_proxy.read().value
+    #    self.y_axis = np.mean(real_data, axis = 1)
+    #    
+    #    self.y_max = np.max(self.y_axis)
+    #    self.y_min = np.min(self.y_axis)
+    #    self.muu = self.y_axis.argmax()
         
-        self.y_max = np.max(self.y_axis)
-        self.y_min = np.min(self.y_axis)
-        self.muu = self.y_axis.argmax()
+    #    self.pars.add('mu', value = self.muu)
+    #    self.pars.add('A', value = self.y_max-self.y_min)
+    #    self.pars.add('c', value = self.y_min)
+    #    self.pars.add('sigma', value = self.sigma_try )
         
-        self.pars.add('mu', value = self.muu)
-        self.pars.add('A', value = self.y_max-self.y_min)
-        self.pars.add('c', value = self.y_min)
-        self.pars.add('sigma', value = self.sigma_try )
+    #    self.debug_stream('parameters fitting y axis data') 
         
-        self.debug_stream('parameters fitting y axis data') 
-        
-        self.out_gaussy = mod.fit(self.y_axis, self.pars, x=self.y2) 
-        self.b = self.out_gaussy.best_values['sigma']        
-        self.debug_stream('fitting y axis done succesfully')
-        return self.b*2*np.sqrt(2*np.log(2))*self.calibr_real*self.sqrt2
+    #    self.out_gaussy = mod.fit(self.y_axis, self.pars, x=self.y2) 
+    #    self.b = self.out_gaussy.best_values['sigma']        
+    #    self.debug_stream('fitting y axis done succesfully')
+    #    return self.b*2*np.sqrt(2*np.log(2))*self.calibr_real*self.sqrt2
     
-    def read_sech2_pulsewidth_y(self):
-        return self.b*2*np.sqrt(2*np.log(2))*self.calibr_real*1.55
+    #def read_sech2_pulsewidth_y(self):
+    #    return self.b*2*np.sqrt(2*np.log(2))*self.calibr_real*1.55
 
-    def read_fitting_y(self):
-        return self.out_gaussy.best_fit
+    #def read_fitting_y(self):
+    #    return self.out_gaussy.best_fit
 
 
 '''this is what I tried to fit to a 2D data but its too heavy. however, it may be
